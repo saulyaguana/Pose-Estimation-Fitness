@@ -19,6 +19,13 @@ class FitnessTracker:
             raise ExceptionError("Could not found the source path, try it again")
         return video
     
+    def get_landmark_point(landmarks, landmark_point, width, height):
+        x = int(landmarks.landmark[landmark_point].x * width)
+        y = int(landmarks.landmark[landmark_point].y * height)
+
+        return np.array([x, y])
+    
+    
     def pull_ups(self):
         video = self.source_path
         win_name = "Pull-Ups"
