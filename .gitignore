@@ -1,2 +1,4 @@
 /.venv
 /fit_venv
+/__pycache__
+*.pyc

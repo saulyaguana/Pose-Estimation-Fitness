@@ -12,10 +12,11 @@ class FitnessTracker:
     def __init__(self, source_path=0):
         self.source_path = self.validate_video(source_path)
         self.color_lines = (255, 255, 255)
+        self.color_circles = (0, 0, 0)
 
     def validate_video(self, path):
         video = cv2.VideoCapture(path)
-        if not video.isOpen():
+        if not video.isOpened():
             raise ExceptionError("Could not found the source path, try it again")
         return video
     
@@ -40,8 +41,8 @@ class FitnessTracker:
         win_name = "Pull-Ups"
         cv2.namedWindow(win_name)
 
-        height = int(video.get(cv2.CAP_PROPFRAME_HEIGHT))
-        width = int(video.get(cv2.CAP_PROP_WIDTH))
+        height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
 
         mp_pose = mp.solutions.pose
 
@@ -54,43 +55,80 @@ class FitnessTracker:
                 if not has_frame:
                     break
 
-            frame = cv2.flip(frame, 1)
+                frame = cv2.flip(frame, 1)
 
-            results = pose.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                results = pose.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
 
-            if results.pose_landmarks:
-                landmarks = results.pose_landmarks
-                enum_pose = mp_pose.PoseLandmark
+                if results.pose_landmarks:
+                    landmarks = results.pose_landmarks
+                    enum_pose = mp_pose.PoseLandmark
 
-                # Left wrist
-                l_wrist_x = int(landmarks.landmark[enum_pose.LEFT_WRIST].x * width)
-                l_wrist_y = int(landmarks.landmark[enum_pose.LEFT_WRIST].y * height)
+                    # Left wrist
+                    l_wrist_p = self.get_landmark_point(landmarks, enum_pose.LEFT_WRIST, width, height)
 
-                # Left elbow
-                l_elbow_x = int(landmarks.landmark[enum_pose.LEFT_ELBOW].x * width)
-                l_elbow_y = int(landmarks.landmark[enum_pose.LEFT_ELBOW].y * height)
+                    # Left elbow
+                    l_elbow_p = self.get_landmark_point(landmarks, enum_pose.LEFT_ELBOW, width, height)
 
-                # Left shoulder
-                l_shoulder_x = int(landmarks.landmark[enum_pose.LEFT_SHOULDER].x * width)
-                l_shoulder_y = int(landmarks.landmark[enum_pose.LEFT_SHOULDER].y * height)
+                    # Left shoulder
+                    l_shoulder_p = self.get_landmark_point(landmarks, enum_pose.LEFT_SHOULDER, width, height)
 
-                # Right wrist
-                r_wrist_x = int(landmarks.landmark[enum_pose.RIGHT_WRIST].x * width)
-                r_wrist_y = int(landmarks.landmark[enum_pose.RIGHT_WRIST].y *height)
+                    # Right wrist
+                    r_wrist_p = self.get_landmark_point(landmarks, enum_pose.RIGHT_WRIST, width, height)
 
-                # Right elbow
-                r_elbow_x = int(landmarks.landmark[enum_pose.RIGHT_ELBOW].x * width)
-                r_elbow_y = int(landmarks.landmark[enum_pose.RIGHT_ELBOW].y * height)
+                    # Right elbow
+                    r_elbow_p = self.get_landmark_point(landmarks, enum_pose.RIGHT_ELBOW, width, height)
 
-                # Right shoulder
-                r_shoulder_x = int(landmarks.landmark[enum_pose.RIGHT_SHOULDER].x * width)
-                r_shoulder_y = int(landmarks.landmark[enum_pose.RIGHT_SHOULDER].y * height)
+                    # Right shoulder
+                    r_shoulder_p = self.get_landmark_point(landmarks, enum_pose.RIGHT_SHOULDER, width, height)
 
-                # Join landmarks
-                cv2.line(frame, (l_wrist_x, l_wrist_y), (l_elbow_x, l_elbow_y), self.color_lines, 2, cv2.LINE_AA)
-                cv2.line(frame, (l_elbow_x, l_elbow_y), (l_shoulder_x, l_shoulder_y), self.color_lines, 2, cv2.LINE_AA)
-                cv2.line(frame,  (l_shoulder_x, l_shoulder_y),  (r_shoulder_x, r_shoulder_y), self.color_lines, 2, cv2.LINE_AA)
-                cv2.line(frame, (r_shoulder_x, r_shoulder_y), (r_elbow_x, r_elbow_y), self.color_lines, 2, cv2.LINE_AA)
-                cv2.line(frame, (r_elbow_x, r_elbow_y), (r_wrist_x, r_wrist_y), self.color_lines, 2, cv2.LINE_AA)
+                    # Compute angles
+                    v_wrist_elbow_left = np.subtract(l_wrist_p, l_elbow_p)
+                    v_elbow_shoulder_left = np.subtract(l_shoulder_p, l_elbow_p)
 
-                # Draw 
+                    v_wrist_elbow_right = np.subtract(r_elbow_p, r_wrist_p)
+                    v_elbow_shoulder_right = np.subtract(r_elbow_p, r_shoulder_p)
+
+                    v_shoulder_to_shoulder = np.subtract(l_shoulder_p, r_shoulder_p)
+
+                    angle_left = self.compute_angle(v_wrist_elbow_left, v_elbow_shoulder_left)
+                    angle_right = self.compute_angle(v_wrist_elbow_right, v_elbow_shoulder_right)
+
+                    angle_shoulder_left = self.compute_angle(v_elbow_shoulder_left, v_shoulder_to_shoulder)
+                    angle_shoulder_right = self.compute_angle(v_elbow_shoulder_right, v_shoulder_to_shoulder)
+
+
+                    # Place text
+                    text_loc_left = (l_wrist_p[0] - 25, l_wrist_p[1] - 10)
+                    cv2.putText(frame, str(int(angle_left)), text_loc_left, cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv2.LINE_AA)
+
+                    text_loc_right = (r_wrist_p[0] - 25, r_wrist_p[1] - 10)
+                    cv2.putText(frame, str(int(angle_right)), text_loc_right, cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv2.LINE_AA)
+                    
+                    text_loc_left_sts = (l_shoulder_p[0] - 25, l_shoulder_p[1] - 10)
+                    cv2.putText(frame, str(int(angle_shoulder_left)), text_loc_left_sts, cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv2.LINE_AA)
+
+                    text_loc_right_sts = (r_shoulder_p[0] - 25, r_shoulder_p[1] - 10)
+                    cv2.putText(frame, str(int(angle_shoulder_right)), text_loc_right_sts, cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv2.LINE_AA)
+
+                    # Join landmarks
+                    cv2.line(frame, l_wrist_p, l_elbow_p, self.color_lines, 2, cv2.LINE_AA)
+                    cv2.line(frame, l_elbow_p, l_shoulder_p, self.color_lines, 2, cv2.LINE_AA)
+                    cv2.line(frame,  l_shoulder_p,  r_shoulder_p, self.color_lines, 2, cv2.LINE_AA)
+                    cv2.line(frame, r_shoulder_p, r_elbow_p, self.color_lines, 2, cv2.LINE_AA)
+                    cv2.line(frame, r_elbow_p, r_wrist_p, self.color_lines, 2, cv2.LINE_AA)
+
+                    # Draw landmarks
+                    cv2.circle(frame, l_wrist_p, 3, self.color_circles, -1)
+                    cv2.circle(frame, l_elbow_p, 3, self.color_circles, -1)
+                    cv2.circle(frame, l_shoulder_p, 3, self.color_circles, -1)
+                    cv2.circle(frame, r_shoulder_p, 3, self.color_circles, -1)
+                    cv2.circle(frame, r_elbow_p, 3, self.color_circles, -1)
+                    cv2.circle(frame, r_wrist_p, 3, self.color_circles, -1)
+
+                cv2.imshow(win_name, frame)
+                key = cv2.waitKey(1)
+
+                if key == 27:
+                    break
+        video.release()
+        cv2.destroyAllWindows()
