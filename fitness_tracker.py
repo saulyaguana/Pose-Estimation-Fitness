@@ -11,9 +11,15 @@ class ExceptionError(Exception):
 class FitnessTracker:
     def __init__(self, source_path=0):
         self.source_path = self.validate_video(source_path)
-        self.color_lines = (255, 255, 255)
-        self.color_circles = (0, 0, 0)
-        self.initial_color_line = (128, 128, 128)
+        self.colors = {
+            "color_lines": (255, 255, 255),
+            "color_circles": (0, 0, 0),
+            "initial_color_line": (128, 128, 128),
+            "wrist": (242, 71, 15),
+            "elbow": (0, 208, 255),
+            "shoulder": (235, 7, 106),
+        }
+        
 
     def validate_video(self, path):
         video = cv2.VideoCapture(path)
@@ -38,11 +44,21 @@ class FitnessTracker:
         return angle_deg
 
     def pull_ups(self):
+        
+        UP_ANGLE_MIN = 7
+        UP_ANGLE_MAX = 25
+
+        SHOULDER_ANGLE_MIN = 128
+        SHOULDER_ANGLE_MAX = 145
         video = self.source_path
+
         win_name = "Pull-Ups"
         cv2.namedWindow(win_name)
 
         first_frame = True
+        over_head = False
+
+        counter = 0
 
         height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
         width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -105,45 +121,79 @@ class FitnessTracker:
 
                     # Place text
                     text_loc_left = (l_wrist_p[0] - 25, l_wrist_p[1] - 10)
-                    cv2.putText(frame, str(int(angle_left)), text_loc_left, cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv2.LINE_AA)
+                    cv2.putText(frame, str(int(angle_left)), text_loc_left, cv2.FONT_HERSHEY_SIMPLEX, 0.5, self.colors["wrist"], 2, cv2.LINE_AA)
 
                     text_loc_right = (r_wrist_p[0] - 25, r_wrist_p[1] - 10)
-                    cv2.putText(frame, str(int(angle_right)), text_loc_right, cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv2.LINE_AA)
+                    cv2.putText(frame, str(int(angle_right)), text_loc_right, cv2.FONT_HERSHEY_SIMPLEX, 0.5, self.colors["wrist"], 2, cv2.LINE_AA)
                     
-                    text_loc_left_sts = (l_shoulder_p[0] - 25, l_shoulder_p[1] - 10)
-                    cv2.putText(frame, str(int(angle_shoulder_left)), text_loc_left_sts, cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv2.LINE_AA)
+                    text_loc_left_sts = (l_shoulder_p[0] - 25, l_shoulder_p[1] - 15)
+                    cv2.putText(frame, str(int(angle_shoulder_left)), text_loc_left_sts, cv2.FONT_HERSHEY_SIMPLEX, 0.5, self.colors["shoulder"], 2, cv2.LINE_AA)
 
-                    text_loc_right_sts = (r_shoulder_p[0] - 25, r_shoulder_p[1] - 10)
-                    cv2.putText(frame, str(int(angle_shoulder_right)), text_loc_right_sts, cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv2.LINE_AA)
+                    text_loc_right_sts = (r_shoulder_p[0] - 25, r_shoulder_p[1] - 15)
+                    cv2.putText(frame, str(int(angle_shoulder_right)), text_loc_right_sts, cv2.FONT_HERSHEY_SIMPLEX, 0.5, self.colors["elbow"], 2, cv2.LINE_AA)
 
                     # Join landmarks
-                    cv2.line(frame, l_wrist_p, l_elbow_p, self.color_lines, 2, cv2.LINE_AA)
-                    cv2.line(frame, l_elbow_p, l_shoulder_p, self.color_lines, 2, cv2.LINE_AA)
-                    cv2.line(frame,  l_shoulder_p,  r_shoulder_p, self.color_lines, 2, cv2.LINE_AA)
-                    cv2.line(frame, r_shoulder_p, r_elbow_p, self.color_lines, 2, cv2.LINE_AA)
-                    cv2.line(frame, r_elbow_p, r_wrist_p, self.color_lines, 2, cv2.LINE_AA)
+                    cv2.line(frame, l_wrist_p, l_elbow_p, self.colors["color_lines"], 2, cv2.LINE_AA)
+                    cv2.line(frame, l_elbow_p, l_shoulder_p, self.colors["color_lines"], 2, cv2.LINE_AA)
+                    cv2.line(frame,  l_shoulder_p,  r_shoulder_p, self.colors["color_lines"], 2, cv2.LINE_AA)
+                    cv2.line(frame, r_shoulder_p, r_elbow_p, self.colors["color_lines"], 2, cv2.LINE_AA)
+                    cv2.line(frame, r_elbow_p, r_wrist_p, self.colors["color_lines"], 2, cv2.LINE_AA)
 
                     # Draw landmarks
-                    cv2.circle(frame, l_wrist_p, 3, self.color_circles, -1)
-                    cv2.circle(frame, l_elbow_p, 3, self.color_circles, -1)
-                    cv2.circle(frame, l_shoulder_p, 3, self.color_circles, -1)
-                    cv2.circle(frame, r_shoulder_p, 3, self.color_circles, -1)
-                    cv2.circle(frame, r_elbow_p, 3, self.color_circles, -1)
-                    cv2.circle(frame, r_wrist_p, 3, self.color_circles, -1)
+                    cv2.circle(frame, l_wrist_p, 3, self.colors["color_circles"], -1)
+                    cv2.circle(frame, l_elbow_p, 3, self.colors["color_circles"], -1)
+                    cv2.circle(frame, l_shoulder_p, 3, self.colors["color_circles"], -1)
+                    cv2.circle(frame, r_shoulder_p, 3, self.colors["color_circles"], -1)
+                    cv2.circle(frame, r_elbow_p, 3, self.colors["color_circles"], -1)
+                    cv2.circle(frame, r_wrist_p, 3, self.colors["color_circles"], -1)
 
                     if first_frame:
                         p_center_head_p = self.get_landmark_point(landmarks, enum_pose.NOSE, width, height)
                         first_frame = False
 
                     # Vertical line
-                    cv2.line(frame, (0, p_center_head_p[1]), (frame.shape[1] - 1, p_center_head_p[1]), self.initial_color_line, 1, cv2.LINE_AA)
-                    cv2.line(frame, (0, center_head_p[1]), (frame.shape[1] - 1, center_head_p[1]), self.color_lines, 1, cv2.LINE_AA)
+                    cv2.line(frame, (0, p_center_head_p[1]), (frame.shape[1] - 1, p_center_head_p[1]), self.colors["initial_color_line"], 1, cv2.LINE_AA)
+                    cv2.line(frame, (0, center_head_p[1]), (frame.shape[1] - 1, center_head_p[1]), (0, 0, 255), 1, cv2.LINE_AA)
 
-                    # Poiint center head
-                    cv2.circle(frame, center_head_p, 3, self.color_circles, -1)
+                    # Point center head
+                    cv2.circle(frame, center_head_p, 3, self.colors["color_circles"], -1)
+
+                    DOWN_ANGLE_THRESHOLD = 160
+
+
+                    is_up_position = (
+                        # Flexed elbows
+                        (angle_left >= UP_ANGLE_MIN and angle_left <= UP_ANGLE_MAX) and
+                        (angle_right >= UP_ANGLE_MIN and angle_right <= UP_ANGLE_MAX) and
+                        
+                        # Flexed shoulders
+                        (angle_shoulder_left >= SHOULDER_ANGLE_MIN and angle_shoulder_left <= SHOULDER_ANGLE_MAX) and
+                        (angle_shoulder_right >= SHOULDER_ANGLE_MIN and angle_shoulder_right <= SHOULDER_ANGLE_MAX) and
+                        
+                        # Head hight
+                        (center_head_p[1] <= p_center_head_p[1] + 60)
+                    )
+
+                    is_down_position = (
+                        (angle_left >= DOWN_ANGLE_THRESHOLD) and
+                        (angle_right >= DOWN_ANGLE_THRESHOLD)
+                    )
+
+                    if is_up_position:
+                        over_head = True
+
+                    elif is_down_position and over_head:
+                        counter += 1
+                        over_head = False
+
+                    # print how many push-ups
+                    frame[25:70, 0:40] = 0
+                    cv2.putText(frame, str(counter), (0, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+
+                            
 
                 cv2.imshow(win_name, frame)
-                key = cv2.waitKey(1)
+                key = cv2.waitKey(10)
 
                 if key == 27:
                     break
