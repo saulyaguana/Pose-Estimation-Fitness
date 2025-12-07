@@ -13,6 +13,7 @@ class FitnessTracker:
         self.source_path = self.validate_video(source_path)
         self.color_lines = (255, 255, 255)
         self.color_circles = (0, 0, 0)
+        self.initial_color_line = (128, 128, 128)
 
     def validate_video(self, path):
         video = cv2.VideoCapture(path)
@@ -40,6 +41,8 @@ class FitnessTracker:
         video = self.source_path
         win_name = "Pull-Ups"
         cv2.namedWindow(win_name)
+
+        first_frame = True
 
         height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
         width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -80,6 +83,9 @@ class FitnessTracker:
 
                     # Right shoulder
                     r_shoulder_p = self.get_landmark_point(landmarks, enum_pose.RIGHT_SHOULDER, width, height)
+
+                    # center head
+                    center_head_p = self.get_landmark_point(landmarks, enum_pose.NOSE, width, height)
 
                     # Compute angles
                     v_wrist_elbow_left = np.subtract(l_wrist_p, l_elbow_p)
@@ -124,6 +130,17 @@ class FitnessTracker:
                     cv2.circle(frame, r_shoulder_p, 3, self.color_circles, -1)
                     cv2.circle(frame, r_elbow_p, 3, self.color_circles, -1)
                     cv2.circle(frame, r_wrist_p, 3, self.color_circles, -1)
+
+                    if first_frame:
+                        p_center_head_p = self.get_landmark_point(landmarks, enum_pose.NOSE, width, height)
+                        first_frame = False
+
+                    # Vertical line
+                    cv2.line(frame, (0, p_center_head_p[1]), (frame.shape[1] - 1, p_center_head_p[1]), self.initial_color_line, 1, cv2.LINE_AA)
+                    cv2.line(frame, (0, center_head_p[1]), (frame.shape[1] - 1, center_head_p[1]), self.color_lines, 1, cv2.LINE_AA)
+
+                    # Poiint center head
+                    cv2.circle(frame, center_head_p, 3, self.color_circles, -1)
 
                 cv2.imshow(win_name, frame)
                 key = cv2.waitKey(1)
